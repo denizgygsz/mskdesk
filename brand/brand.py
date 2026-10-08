@@ -5,6 +5,7 @@ RustDesk deposunun kökünde çalıştırılır:  python mskdesk/brand/brand.py
 Her değişiklik eşleşme sayısını doğrular. RustDesk yeni sürümde bir yeri değiştirirse
 derleme burada, anlaşılır bir hatayla durur; sessizce yarım markalı uygulama çıkmaz.
 """
+import json
 import re
 import shutil
 import sys
@@ -17,6 +18,8 @@ SUNUCU = 'destek.mskglobal.net'
 ANAHTAR = 'pIrqc0NorXsGeBWZseBzZCj0SpD66seHBa5Y3WZ+W8s='
 API = 'https://destek.mskglobal.net'
 SIRKET = 'MSK Global Electronics'
+KIRMIZI = 'D71920'       # MSK kırmızısı; RustDesk'in mavi vurgusunun (0071FF) yerine
+KIRMIZI_ACIK = 'E23A40'  # buton/ikincil için biraz daha açık ton (mavi 2C8CFF yerine)
 
 
 def oku(yol):
@@ -75,6 +78,58 @@ for p in sorted((KOK / 'src/lang').glob('*.rs')):
 if toplam == 0:
     sys.exit('HATA src/lang: hiç "RustDesk" metni bulunamadı')
 print(f'  src/lang: {toplam}')
+
+print('Tema renkleri (mavi vurgu -> MSK kırmızısı)')
+cd = 'flutter/lib/common.dart'
+degistir(cd, 'static const Color accent = Color(0xFF0071FF);', f'static const Color accent = Color(0xFF{KIRMIZI});', 1)
+degistir(cd, 'static const Color accent50 = Color(0x770071FF);', f'static const Color accent50 = Color(0x77{KIRMIZI});', 1)
+degistir(cd, 'static const Color accent80 = Color(0xAA0071FF);', f'static const Color accent80 = Color(0xAA{KIRMIZI});', 1)
+degistir(cd, 'static const Color idColor = Color(0xFF00B6F0);', f'static const Color idColor = Color(0xFF{KIRMIZI});', 1)
+degistir(cd, 'static const Color button = Color(0xFF2C8CFF);', f'static const Color button = Color(0xFF{KIRMIZI_ACIK});', 1)
+degistir(cd, 'return Color(0xFF2C8CFF);', f'return Color(0xFF{KIRMIZI_ACIK});', 1)   # bildirim rengi (buton tonuyla aynı)
+degistir(cd, 'primary: Colors.blue,', 'primary: Colors.red,', 2)   # açık + koyu tema ColorScheme; "blue": etiket renk haritası dokunulmaz
+
+print('Gömülü kilitli ayarlar (mskdesk.json)')
+# load_custom_client gövdesi yeniden yazılır: imzalı custom.txt doğrulaması (read_custom_client)
+# ve onun KEY sabiti OLDUĞU GİBİ KORUNUR; biz yalnız override-settings'i doğrudan uygularız.
+AYAR = json.loads((MSK / 'mskdesk.json').read_text(encoding='utf-8'))
+cagrilar = ''
+for anahtar, override in (('default-settings', 'false'), ('override-settings', 'true')):
+    if AYAR.get(anahtar):
+        jstr = json.dumps(AYAR[anahtar], ensure_ascii=False)
+        if '"#' in jstr:
+            sys.exit(f'HATA mskdesk.json {anahtar}: değer içinde \'"#\' olamaz')
+        cagrilar += (
+            f'    if let Ok(ayar) = serde_json::from_str::<serde_json::Value>(\n'
+            f'        r#"{jstr}"#,\n'
+            f'    ) {{\n'
+            f'        read_custom_client_advanced_settings(ayar, &md, &ml, &ms, &mb, {override});\n'
+            f'    }}\n'
+        )
+yeni_fn = (
+    'pub fn load_custom_client() {\n'
+    '    // MSKDesk: kilitli kurumsal ayarlar derlemeye gömülüdür (gözetimsiz erişim:\n'
+    '    // doğru kalıcı şifreyle, uzaktaki kullanıcı onay vermeden bağlanır).\n'
+    '    // RustDesk\'in imzalı custom.txt doğrulaması (read_custom_client) ve KEY sabiti\n'
+    '    // olduğu gibi korunur; burada yalnız gömülü ayarlar uygulanır, dışarıdan custom.txt okunmaz.\n'
+    '    let mut md = HashMap::new();\n'
+    '    for s in keys::KEYS_DISPLAY_SETTINGS { md.insert(s.replace("_", "-"), s); }\n'
+    '    let mut ml = HashMap::new();\n'
+    '    for s in keys::KEYS_LOCAL_SETTINGS { ml.insert(s.replace("_", "-"), s); }\n'
+    '    let mut ms = HashMap::new();\n'
+    '    for s in keys::KEYS_SETTINGS { ms.insert(s.replace("_", "-"), s); }\n'
+    '    let mut mb = HashMap::new();\n'
+    '    for s in keys::KEYS_BUILDIN_SETTINGS { mb.insert(s.replace("_", "-"), s); }\n'
+    f'{cagrilar}'
+    '}'
+)
+s = oku('src/common.rs')
+# .*? kapanış süslü parantezine kadar; satır sonu CRLF olabilir (Windows checkout)
+s2, n = re.subn(r'pub fn load_custom_client\(\) \{.*?\r?\n\}', lambda _: yeni_fn, s, count=1, flags=re.S)
+if n != 1:
+    sys.exit('HATA src/common.rs: load_custom_client bulunamadı')
+yaz('src/common.rs', s2)
+print(f'  src/common.rs load_custom_client: 1')
 
 print('İkonlar ve logo')
 v = MSK / 'brand/assets'

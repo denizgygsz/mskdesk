@@ -1,0 +1,7 @@
+{
+  "_aciklama": "MSKDesk'e gömülen kilitli ayarlar. brand.py bunları override-settings olarak uygular; kullanıcı değiştiremez. app-name, sunucu ve anahtar doğrudan kaynak sabitlerine yazılır (brand.py).",
+  "override-settings": {
+    "approve-mode": "password",
+    "verification-method": "use-permanent-password"
+  }
+}
