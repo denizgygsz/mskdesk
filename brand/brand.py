@@ -72,6 +72,46 @@ degistir('src/platform/windows.rs',
          'run_cmds(get_uninstall(kill_self, true)?, true, "uninstall")',
          'run_cmds(get_uninstall(kill_self, true)?, false, "uninstall")', 1)
 
+print('Oturum sonu müşteri bilgilendirme penceresi')
+sm = 'flutter/lib/models/server_model.dart'
+# bağlantı bitince (müşteri tarafı) özet penceresini tetikle
+degistir(sm, "final close = (evt['close'] as String) == 'true';",
+         "final close = (evt['close'] as String) == 'true';\n"
+         "      try { if (close) { final _mi = _clients.indexWhere((c) => c.id == id); if (_mi >= 0 && _clients[_mi].authorized) _mskOturumOzeti(_clients[_mi]); } } catch (e) {}", 1)
+# özet penceresi yöntemi (onClientRemove'dan hemen önce eklenir)
+_msk_ozet = '''  // MSKDesk: bağlantı bitince müşteriye ne yapıldığını ve kayıt altına alındığını gösterir
+  void _mskOturumOzeti(Client c) {
+    try {
+      final islemler = <String>[];
+      if (c.keyboard) islemler.add('Uzaktan kontrol (klavye/fare)');
+      if (c.file) islemler.add('Dosya aktarimi');
+      if (c.audio) islemler.add('Ses dinleme');
+      if (c.clipboard) islemler.add('Pano paylasimi');
+      if (c.restart) islemler.add('Yeniden baslatma');
+      Future.delayed(const Duration(milliseconds: 120), () { if (desktopType == DesktopType.cm) showCmWindow(); });
+      parent.target?.dialogManager.show((setState, close, context) {
+        kapat() { try { close(); } catch (e) {} Future.delayed(const Duration(milliseconds: 200), () { if (desktopType == DesktopType.cm && _clients.isEmpty) hideCmWindow(); }); }
+        Timer(const Duration(seconds: 25), kapat);
+        return CustomAlertDialog(
+          title: Row(children: [const Icon(Icons.verified_user, color: Color(0xFFD71920)), const SizedBox(width: 8), Flexible(child: Text('MSK Destek - Oturum sona erdi'))]),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Teknisyen: ' + (c.name.isEmpty ? c.peerId : c.name)),
+            const SizedBox(height: 8),
+            Text(islemler.isEmpty ? 'Bu oturumda ekraniniz goruntulendi.' : ('Yapilan islemler: ' + islemler.join(', ') + '.')),
+            const SizedBox(height: 8),
+            const Text('Bu oturum guvenlik icin kayit altina alinmistir.'),
+            const SizedBox(height: 4),
+            const Text('Sorulariniz icin: destek@mskglobal.net'),
+          ]),
+          actions: [dialogButton('Tamam', onPressed: kapat)],
+        );
+      });
+    } catch (e) {}
+  }
+
+'''
+degistir(sm, "  void onClientRemove(Map<String, dynamic> evt) {", _msk_ozet + "  void onClientRemove(Map<String, dynamic> evt) {", 1)
+
 print('Arayüz metinleri (yalnız çeviri değerleri; anahtarlar aynı kalır)')
 satir = re.compile(r'^(\s*\("(?:[^"\\]|\\.)*",\s*")((?:[^"\\]|\\.)*)("\),?)', re.M)
 toplam = 0
