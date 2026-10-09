@@ -78,8 +78,12 @@ sm = 'flutter/lib/models/server_model.dart'
 degistir(sm, "final close = (evt['close'] as String) == 'true';",
          "final close = (evt['close'] as String) == 'true';\n"
          "      try { if (close) { final _mi = _clients.indexWhere((c) => c.id == id); if (_mi >= 0 && _clients[_mi].authorized) _mskOturumOzeti(_clients[_mi]); } } catch (e) {}", 1)
-# özet penceresi yöntemi (onClientRemove'dan hemen önce eklenir)
+# CM penceresi boş kalınca gizlenip kapanıyor; popup açıkken (_mskOzetAcik) bunu durdur
+degistir(sm, r"if \(_clients\.isEmpty\) \{(\r?\n\s*hideCmWindow\(\);\r?\n\s*if \(_zeroClientLengthCounter)",
+         r"if (_clients.isEmpty && !_mskOzetAcik) {\1", 1, regex=True)
+# özet penceresi yöntemi + bayrak (onClientRemove'dan hemen önce eklenir)
 _msk_ozet = '''  // MSKDesk: bağlantı bitince müşteriye ne yapıldığını ve kayıt altına alındığını gösterir
+  bool _mskOzetAcik = false;
   void _mskOturumOzeti(Client c) {
     try {
       final islemler = <String>[];
@@ -88,10 +92,11 @@ _msk_ozet = '''  // MSKDesk: bağlantı bitince müşteriye ne yapıldığını 
       if (c.audio) islemler.add('Ses dinleme');
       if (c.clipboard) islemler.add('Pano paylasimi');
       if (c.restart) islemler.add('Yeniden baslatma');
-      Future.delayed(const Duration(milliseconds: 120), () { if (desktopType == DesktopType.cm) showCmWindow(); });
+      _mskOzetAcik = true;
+      if (desktopType == DesktopType.cm) showCmWindow();
       parent.target?.dialogManager.show((setState, close, context) {
-        kapat() { try { close(); } catch (e) {} Future.delayed(const Duration(milliseconds: 200), () { if (desktopType == DesktopType.cm && _clients.isEmpty) hideCmWindow(); }); }
-        Timer(const Duration(seconds: 25), kapat);
+        kapat() { _mskOzetAcik = false; try { close(); } catch (e) {} }
+        Timer(const Duration(seconds: 30), kapat);
         return CustomAlertDialog(
           title: Row(children: [const Icon(Icons.verified_user, color: Color(0xFFD71920)), const SizedBox(width: 8), Flexible(child: Text('MSK Destek - Oturum sona erdi'))]),
           content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -106,7 +111,7 @@ _msk_ozet = '''  // MSKDesk: bağlantı bitince müşteriye ne yapıldığını 
           actions: [dialogButton('Tamam', onPressed: kapat)],
         );
       });
-    } catch (e) {}
+    } catch (e) { _mskOzetAcik = false; }
   }
 
 '''
