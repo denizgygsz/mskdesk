@@ -67,6 +67,11 @@ degistir(rc, 'VALUE "OriginalFilename", "rustdesk.exe"', f'VALUE "OriginalFilena
 degistir(rc, 'VALUE "ProductName", "RustDesk"', f'VALUE "ProductName", "{AD}"', 1)
 degistir('flutter/windows/runner/main.cpp', 'std::wstring app_name = L"RustDesk";', f'std::wstring app_name = L"{AD}";', 1)
 
+print('Kaldırma (uninstall) sırasında cmd penceresi gizlensin (kurumsal/temiz)')
+degistir('src/platform/windows.rs',
+         'run_cmds(get_uninstall(kill_self, true)?, true, "uninstall")',
+         'run_cmds(get_uninstall(kill_self, true)?, false, "uninstall")', 1)
+
 print('Arayüz metinleri (yalnız çeviri değerleri; anahtarlar aynı kalır)')
 satir = re.compile(r'^(\s*\("(?:[^"\\]|\\.)*",\s*")((?:[^"\\]|\\.)*)("\),?)', re.M)
 toplam = 0
@@ -174,6 +179,7 @@ for kaynak, hedef in [
     ('mskdesk.ico', 'flutter/assets/icon.ico'),
     ('logo_light.png', 'flutter/assets/logo_light.png'),
     ('logo_dark.png', 'flutter/assets/logo_dark.png'),
+    ('logo_light.png', 'flutter/assets/logo.png'),   # yedek: in-app logo her durumda MSK logosu olsun
 ]:
     if not (KOK / hedef).parent.is_dir():
         sys.exit(f'HATA {hedef}: klasör yok')
