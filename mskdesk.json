@@ -1,7 +1,25 @@
 {
-  "_aciklama": "MSKDesk'e gömülen kilitli ayarlar. brand.py bunları override-settings olarak uygular; kullanıcı değiştiremez. app-name, sunucu ve anahtar doğrudan kaynak sabitlerine yazılır (brand.py).",
+  "_aciklama": "MSKDesk gömülü ayarları. app-name/sunucu/anahtar kaynak sabitlerine yazılır (brand.py). approve-mode VARSAYILAN olarak password (gözetimsiz); panel heartbeat ile cihaz bazında 'click'e (onay gerekli) çevirebilir. override ve hard ayarlar kullanıcı tarafından değiştirilemez.",
+  "default-settings": {
+    "approve-mode": "password"
+  },
   "override-settings": {
-    "approve-mode": "password",
-    "verification-method": "use-permanent-password"
+    "verification-method": "use-permanent-password",
+    "hide-security-settings": "Y",
+    "hide-remote-printer-settings": "Y",
+    "disable-group-panel": "Y",
+    "hide-server-settings": "Y",
+    "hide-network-settings": "Y",
+    "hide-proxy-settings": "Y",
+    "hide-websocket-settings": "Y",
+    "hide-help-cards": "Y",
+    "hide-powered-by-me": "Y",
+    "allow-auto-record-outgoing": "Y",
+    "enable-check-update": "N",
+    "allow-auto-update": "N",
+    "allow-deep-link-password": "Y"
+  },
+  "hard-settings": {
+    "disable-ab": "Y"
   }
 }

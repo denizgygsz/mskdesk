@@ -106,6 +106,11 @@ for anahtar, override in (('default-settings', 'false'), ('override-settings', '
             f'        read_custom_client_advanced_settings(ayar, &md, &ml, &ms, &mb, {override});\n'
             f'    }}\n'
         )
+# hard-settings: is_disable_ab() gibi fonksiyonların okuduğu HARD_SETTINGS'e doğrudan yazılır
+for k, val in (AYAR.get('hard-settings') or {}).items():
+    if '"' in k or '"' in str(val):
+        sys.exit('HATA hard-settings: tırnak olamaz')
+    cagrilar += f'    config::HARD_SETTINGS.write().unwrap().insert("{k}".to_owned(), "{val}".to_owned());\n'
 yeni_fn = (
     'pub fn load_custom_client() {\n'
     '    // MSKDesk: kilitli kurumsal ayarlar derlemeye gömülüdür (gözetimsiz erişim:\n'
@@ -130,6 +135,29 @@ if n != 1:
     sys.exit('HATA src/common.rs: load_custom_client bulunamadı')
 yaz('src/common.rs', s2)
 print(f'  src/common.rs load_custom_client: 1')
+
+print('Hakkında sayfası (amaç, web, destek, KVKK)')
+sp = 'flutter/lib/desktop/pages/desktop_setting_page.dart'
+# web ve gizlilik bağlantıları MSK'ye
+degistir(sp, "launchUrlString('https://rustdesk.com/privacy.html');", "launchUrlString('https://mskglobal.net');", 1)
+degistir(sp, "launchUrlString('https://rustdesk.com');", "launchUrlString('https://mskglobal.net');", 1)
+# Hakkında kutusundaki mavi şerit -> MSK kırmızısı
+degistir(sp, 'const BoxDecoration(color: Color(0xFF2c8cff))', f'const BoxDecoration(color: Color(0xFF{KIRMIZI}))', 1)
+# amaç + destek + KVKK aydınlatma metni (Sürüm satırının üstüne). CRLF'ye toleranslı.
+about_anchor = ("              SelectionArea(\n"
+                "                  child: Text('${translate('Version')}: $version')\n"
+                "                      .marginSymmetric(vertical: 4.0)),")
+about_blok = (
+    "              SelectionArea(child: Text('MSKDesk, MSK Global Electronics IT destek ekibinin kurumsal uzaktan destek uygulamasıdır. Yalnızca yetkili teknisyenler tarafından, kayıt altında uzaktan destek amacıyla kullanılır.').marginSymmetric(vertical: 4.0)),\n"
+    "              SelectionArea(child: Text('Destek: destek@mskglobal.net').marginSymmetric(vertical: 4.0)),\n"
+    "              SelectionArea(child: Text('KVKK Aydınlatma: Uzak destek oturumlarında bağlantı kayıtları (kim, ne zaman, hangi cihaz), cihaz bilgileri ve oturum ekran kaydı; veri sorumlusu MSK Global Electronics tarafından, destek hizmetinin yürütülmesi ve güvenliği amacıyla işlenir ve mevzuatta öngörülen süre boyunca saklanır. Talepleriniz için: destek@mskglobal.net').marginSymmetric(vertical: 4.0)),\n")
+pat = re.escape(about_anchor).replace('\\\n', r'\r?\n').replace('\n', r'\r?\n')
+s = oku(sp)
+s2, n = re.subn(pat, lambda m: about_blok + m.group(0), s, count=1)
+if n != 1:
+    sys.exit(f'HATA {sp}: Hakkında çıpası bulunamadı ({n})')
+yaz(sp, s2)
+print(f'  {sp} Hakkında: 1')
 
 print('İkonlar ve logo')
 v = MSK / 'brand/assets'
